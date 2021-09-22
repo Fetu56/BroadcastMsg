@@ -12,6 +12,7 @@ namespace Server
         Socket socket;
         IPEndPoint iPEndPoint;
         List<Socket> clients;
+        List<User> users;
         bool work = true;
         public Server()
         {
@@ -57,8 +58,26 @@ namespace Server
         private void Connected()
         {
             Socket socketClient = socket.Accept();
-            clients.Add(socketClient);
-            Console.WriteLine("Registrated new user.");
+            socketClient.Send(Encoding.Unicode.GetBytes("Auth on server or login. Log \"[Login] [Pass]\" or \"Reg [Login] [Pass]\" like \"Reg new 123\":"));
+            string get = GetString();
+            if(get.Split("").Length == 3)
+            {
+                if (get.StartsWith("Reg"))
+                {
+                    users.Add(User.Registration(get.Split("")[1], get.Split("")[2], socketClient.AddressFamily.ToString()));
+                    clients.Add(socketClient);
+                    Console.WriteLine("Registrated new user.");
+                }
+                else if (get.StartsWith("Log"))
+                {
+                    if(User.HaveAUser(users, get.Split("")[1], get.Split("")[2], socketClient.AddressFamily.ToString()))
+                    {
+                        clients.Add(socketClient);
+                        Console.WriteLine("Registrated user join.");
+                    }
+                }
+            }
+            
         }
         public void DisconnectAll()
         {
@@ -83,6 +102,18 @@ namespace Server
         private void SendMsgToAll(string msg)
         {
             clients.ForEach(x => x.Send(Encoding.Unicode.GetBytes(msg)));
+        }
+        private string GetString()
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            int bytes = 0;
+            byte[] data = new byte[256];
+            do
+            {
+                bytes = socket.Receive(data);
+                stringBuilder.Append(Encoding.Unicode.GetString(data, 0, bytes));
+            } while (socket.Available > 0);
+            return stringBuilder.ToString();
         }
     }
 }
